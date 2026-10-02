@@ -1,0 +1,11 @@
+# Streamlit theme matching the custom dark trading-terminal CSS in
+# src/dashboard/app.py (slate-900/800 palette, blue accent).
+[theme]
+base = "dark"
+primaryColor = "#3b82f6"
+backgroundColor = "#0f172a"
+secondaryBackgroundColor = "#1e293b"
+textColor = "#e2e8f0"
+
+[browser]
+gatherUsageStats = false

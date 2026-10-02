@@ -1,0 +1,20 @@
+# Core
+pandas>=2.2.0
+numpy>=1.26.0
+requests>=2.32.0
+
+# Market data
+yfinance>=0.2.40
+
+# Dashboard
+streamlit>=1.36.0
+plotly>=5.22.0
+
+# AI insights
+openai>=1.35.0
+
+# Config
+python-dotenv>=1.0.1
+
+# Testing
+pytest>=8.2.0
