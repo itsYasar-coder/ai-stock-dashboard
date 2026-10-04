@@ -274,14 +274,32 @@ def main() -> None:
     render_price_chart(enriched)
     render_indicator_chart(enriched)
 
+    # ------------------------- FIXED AI ANALYSIS SECTION ---------------- #
     st.markdown('<div class="section-header">🤖 AI Analysis</div>', unsafe_allow_html=True)
-    if st.button("Generate AI insights"):
-        with st.spinner("Analyzing…"):
+    
+    if st.button("Generate AI insights", key="ai_insights_btn"):
+        with st.spinner("Analyzing market data & generating insights..."):
             try:
-                st.session_state["insights"] = StockAnalyzer().analyze(symbol, df)
-            except Exception as exc:  # noqa: BLE001
-                logger.exception("AI analysis failed")
-                st.error(f"AI analysis failed: {exc}")
+                analyzer = StockAnalyzer()
+                raw_response = analyzer.analyze(symbol, df)
+                
+                # Safety Check: Agar AI None ya invalid data de to crash na ho
+                if raw_response is None or (isinstance(raw_response, dict) and not raw_response):
+                    st.session_state["insights"] = {
+                        "analysis": "⚠️ AI Agent se koi valid response nahi mila. Kripya API Key check karein ya dubara try karein.",
+                        "sentiment": "Neutral"
+                    }
+                else:
+                    st.session_state["insights"] = raw_response
+                    
+            except Exception as exc:
+                logger.exception("AI analysis failed for %s", symbol)
+                # User friendly error message dikhana
+                st.session_state["insights"] = {
+                    "analysis": f"❌ AI Analysis Failed: {str(exc)[:100]}...",
+                    "sentiment": "Error"
+                }
+                
     render_ai_section(st.session_state.get("insights"))
 
     st.markdown(
