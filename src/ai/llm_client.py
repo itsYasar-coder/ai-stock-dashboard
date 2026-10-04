@@ -8,6 +8,7 @@ the analyzer.
 from __future__ import annotations
 
 import logging
+from typing import Union, Dict, Any
 
 from config.settings import SETTINGS
 
@@ -52,9 +53,12 @@ class LLMClient:
         """True when a real (non-placeholder) API key is present."""
         return not _is_placeholder(self.api_key)
 
-    def generate(self, system_prompt: str, user_prompt: str, temperature: float = 0.3) -> str:
+    def generate(self, system_prompt: str, user_prompt: str, temperature: float = 0.3) -> Union[str, Dict[str, Any], None]:
         """Send a single chat completion request and return the message text.
 
+        Returns:
+            str, dict, or None depending on API response structure.
+            
         Raises:
             LLMClientError: If no API key is configured or the API call fails.
         """
@@ -70,8 +74,9 @@ class LLMClient:
         client_kwargs: dict[str, str] = {"api_key": self.api_key}
         if self.base_url:
             client_kwargs["base_url"] = self.base_url
-        client = OpenAI(**client_kwargs)
+            
         try:
+            client = OpenAI(**client_kwargs)
             response = client.chat.completions.create(
                 model=self.model,
                 temperature=temperature,
@@ -84,4 +89,37 @@ class LLMClient:
             logger.exception("LLM call failed")
             raise LLMClientError(f"LLM call failed: {exc}") from exc
 
-        return response.choices[0].message.content or ""
+        # --- UNIVERSAL SAFE PARSING START ---
+        if response is None:
+            logger.warning("LLM returned None response object")
+            return None
+
+        # Case 1: Standard OpenAI / GLM Structure
+        if hasattr(response, 'choices') and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                content = choice.message.content
+                if content:
+                    return content
+        
+        # Case 2: Direct Content Attribute (Some lightweight APIs)
+        if hasattr(response, 'content'):
+            return response.content
+            
+        # Case 3: Dictionary Response (JSON based APIs)
+        if isinstance(response, dict):
+            # Check common keys used by various AI providers
+            for key in ['text', 'result', 'answer', 'output', 'content']:
+                if key in response and response[key]:
+                    return response[key]
+            # If dict but no standard keys, return stringified version
+            return str(response)
+
+        # Case 4: String Response
+        if isinstance(response, str):
+            return response
+            
+        # Fallback: Log warning and convert whatever we got to string
+        logger.warning(f"Unexpected LLM response type: {type(response)}. Converting to string.")
+        return str(response)
+        # --- UNIVERSAL SAFE PARSING END ---
